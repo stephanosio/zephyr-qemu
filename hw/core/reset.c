@@ -31,6 +31,7 @@
 
 typedef struct QEMUResetEntry {
     QTAILQ_ENTRY(QEMUResetEntry) entry;
+    uint16_t priority;
     QEMUResetHandler *func;
     void *opaque;
 } QEMUResetEntry;
@@ -38,13 +39,40 @@ typedef struct QEMUResetEntry {
 static QTAILQ_HEAD(, QEMUResetEntry) reset_handlers =
     QTAILQ_HEAD_INITIALIZER(reset_handlers);
 
-void qemu_register_reset(QEMUResetHandler *func, void *opaque)
+void qemu_register_reset_with_priority(uint16_t priority,
+    QEMUResetHandler *func, void *opaque)
 {
+    /* Initialise reset entry */
     QEMUResetEntry *re = g_malloc0(sizeof(QEMUResetEntry));
 
+    re->priority = priority;
     re->func = func;
     re->opaque = opaque;
-    QTAILQ_INSERT_TAIL(&reset_handlers, re, entry);
+
+    /* Insert sorted by priority into the reset entry list */
+    if (QTAILQ_EMPTY(&reset_handlers) ||
+        QTAILQ_LAST(&reset_handlers)->priority >= priority)
+    {
+        QTAILQ_INSERT_TAIL(&reset_handlers, re, entry);
+    }
+    else
+    {
+        QEMUResetEntry *cur = QTAILQ_LAST(&reset_handlers);
+
+        while (QTAILQ_PREV(cur, entry) != NULL &&
+               QTAILQ_PREV(cur, entry)->priority < priority)
+        {
+            cur = QTAILQ_PREV(cur, entry);
+        }
+
+        QTAILQ_INSERT_BEFORE(cur, re, entry);
+    }
+}
+
+void qemu_register_reset(QEMUResetHandler *func, void *opaque)
+{
+    qemu_register_reset_with_priority(
+        QEMU_RESET_PRIORITY_DEFAULT, func, opaque);
 }
 
 void qemu_unregister_reset(QEMUResetHandler *func, void *opaque)
