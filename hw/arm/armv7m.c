@@ -352,7 +352,8 @@ void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename, int mem_size)
      * way A-profile does it. Note that this means that every M profile
      * board must call this function!
      */
-    qemu_register_reset(armv7m_reset, cpu);
+    qemu_register_reset_with_priority(
+        QEMU_RESET_PRIORITY_LEVEL(-1), armv7m_reset, cpu);
 }
 
 static Property bitband_properties[] = {
