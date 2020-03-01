@@ -25,6 +25,7 @@
 #ifndef HW_ARM_STM32F405_SOC_H
 #define HW_ARM_STM32F405_SOC_H
 
+#include "hw/misc/stm32f4xx_flashif.h"
 #include "hw/misc/stm32f4xx_rcc.h"
 #include "hw/misc/stm32f4xx_syscfg.h"
 #include "hw/timer/stm32f2xx_timer.h"
@@ -59,6 +60,7 @@ typedef struct STM32F405State {
 
     ARMv7MState armv7m;
 
+    STM32F4xxFlashIfState flashif;
     STM32F4xxRccState rcc;
     STM32F4xxSyscfgState syscfg;
     STM32F4xxExtiState exti;
