@@ -1,0 +1,170 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    name: Build for ${{ matrix.host.name }}
+    runs-on: ${{ matrix.host.build }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        host:
+        - name: linux-x86_64
+          build: ubuntu-18.04
+          archive: tar.gz
+        - name: macos-x86_64
+          build: macos-10.15
+          archive: tar.gz
+        - name: windows-x86_64
+          build: ubuntu-18.04
+          archive: zip
+
+    steps:
+    # Set up build environment (Linux build system)
+    - name: Install dependency packages for Linux
+      if: ${{ matrix.host.build == 'ubuntu-18.04' }}
+      run: |
+        sudo apt-get install bison flex gettext help2man libncurses5-dev \
+                             libtool-bin libtool-doc texinfo
+
+        if [ "${{ matrix.host.name }}" == "windows-x86_64" ]; then
+          sudo apt-get install binutils-mingw-w64 gcc-mingw-w64 g++-mingw-w64 \
+                               mingw-w64-tools
+
+          wget -O - https://qemu.weilnetz.de/debian/gpg.key | sudo apt-key add -
+          echo "deb https://qemu.weilnetz.de/debian/ testing contrib" | sudo tee /etc/apt/sources.list.d/cygwin.list
+          sudo apt-get update
+
+          sudo apt-get install mingw64-x86-64-glib2.0 mingw64-x86-64-pixman
+        fi
+
+    # Set up build environment (macOS build system)
+    - name: Install dependency packages for macOS
+      if: ${{ runner.os == 'macOS' }}
+      run: |
+        brew install autoconf automake bash binutils gawk gnu-sed gnu-tar \
+                     help2man pixman pkg-config ncurses
+
+    - name: Create case sensitive workspace volume for macOS
+      if: ${{ runner.os == 'macOS' }}
+      run: |
+        hdiutil create ${HOME}/Workspace.sparseimage -volname Workspace -type SPARSE -size 14g -fs HFSX
+        hdiutil mount ${HOME}/Workspace.sparseimage
+
+    # Check out source code
+    - name: Check out source code
+      uses: actions/checkout@v2
+
+    # Fetch all history for all tags and branches
+    - run: git fetch --prune --unshallow --tags --force
+
+    # Build QEMU
+    - name: Build QEMU
+      run: |
+        echo "Build started"
+
+        # Resolve GNU tar name
+        if [ "$RUNNER_OS" == "macOS" ]; then
+          export TAR="gtar"
+        else
+          export TAR="tar"
+        fi
+
+        # Resolve workspace path
+        if [ "$RUNNER_OS" == "macOS" ]; then
+          export WORKSPACE="/Volumes/Workspace"
+        else
+          export WORKSPACE="${HOME}"
+        fi
+
+        # Set output path
+        export QEMU_PREFIX="${WORKSPACE}/output"
+        mkdir -p ${QEMU_PREFIX}
+
+        # Create build directory
+        mkdir -p ${WORKSPACE}/build
+        pushd ${WORKSPACE}/build
+
+        # Configure QEMU
+        QEMU_TARGETS=" \
+          aarch64-softmmu \
+        "
+
+        QEMU_FLAGS=" \
+          --disable-docs --disable-sdl --disable-gtk --disable-debug-info \
+          --disable-cap-ng --disable-libnfs --disable-libusb \
+          --disable-libiscsi --disable-usb-redir --disable-linux-aio \
+          --disable-guest-agent --disable-libssh --disable-vnc --disable-kvm \
+          --disable-seccomp --disable-tpm --disable-numa --disable-glusterfs \
+          --disable-virtfs --disable-xen --disable-curl --disable-attr \
+          --disable-curses --disable-iconv \
+        "
+
+        if [ "${{ matrix.host.name }}" == "windows-x86_64" ]; then
+          QEMU_FLAGS="${QEMU_FLAGS} \
+            --cross-prefix="x86_64-w64-mingw32-"
+          "
+        fi
+
+        ${GITHUB_WORKSPACE}/configure \
+          ${QEMU_FLAGS} \
+          --target-list="${QEMU_TARGETS}" \
+          --prefix="${QEMU_PREFIX}"
+
+        # Build QEMU
+        make
+
+        # Install QEMU
+        make install
+        popd
+
+        # Copy required dynamic-link libraries for Windows
+        if [ "${{ matrix.host.name }}" == "windows-x86_64" ]; then
+          QEMU_WIN_LIBS=" \
+            /usr/x86_64-w64-mingw32/sys-root/mingw/bin/iconv.dll \
+            /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libffi-6.dll \
+            /usr/lib/gcc/x86_64-w64-mingw32/7.3-win32/libgcc_s_seh-1.dll \
+            /usr/lib/gcc/x86_64-w64-mingw32/7.3-win32/libssp-0.dll \
+            /usr/lib/gcc/x86_64-w64-mingw32/7.3-win32/libstdc++-6.dll \
+            /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libgio-2.0-0.dll \
+            /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libglib-2.0-0.dll \
+            /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libgmodule-2.0-0.dll \
+            /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libgobject-2.0-0.dll \
+            /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libintl-8.dll \
+            /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libpcre-1.dll \
+            /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libpixman-1-0.dll \
+            /usr/x86_64-w64-mingw32/sys-root/mingw/bin/zlib1.dll \
+            /usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll \
+          "
+
+          for l in ${QEMU_WIN_LIBS}; do
+            cp -f ${l} ${QEMU_PREFIX}
+          done
+        fi
+
+        # Resolve output directory path
+        export OUTPUT_BASE="${WORKSPACE}"
+        export OUTPUT_DIR="output"
+
+        # Create archive
+        if [ "${{ matrix.host.archive }}" == "tar.gz" ]; then
+          ${TAR} -zcvf qemu_${{ matrix.host.name }}.tar.gz --owner=0 --group=0 \
+                 -C ${OUTPUT_BASE} ${OUTPUT_DIR}
+        else
+          pushd ${OUTPUT_BASE}
+          zip -r ${GITHUB_WORKSPACE}/qemu_${{ matrix.host.name }}.zip ${OUTPUT_DIR}
+          popd
+        fi
+
+    # Upload build artifact
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: qemu_${{ matrix.host.name }}
+        path: qemu_${{ matrix.host.name }}.${{ matrix.host.archive }}
