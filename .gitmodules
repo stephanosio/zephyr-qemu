@@ -1,6 +1,6 @@
 [submodule "roms/seabios"]
 	path = roms/seabios
-	url = https://git.qemu.org/git/seabios.git/
+	url = https://github.com/stephanosio/zephyr-seabios.git
 [submodule "roms/SLOF"]
 	path = roms/SLOF
 	url = https://git.qemu.org/git/SLOF.git
