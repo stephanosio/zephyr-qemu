@@ -94,6 +94,14 @@ jobs:
         # Configure QEMU
         QEMU_TARGETS=" \
           aarch64-softmmu \
+          arm-softmmu \
+          i386-softmmu \
+          nios2-softmmu \
+          riscv32-softmmu \
+          riscv64-softmmu \
+          sparc-softmmu \
+          x86_64-softmmu \
+          xtensa-softmmu \
         "
 
         QEMU_FLAGS=" \
