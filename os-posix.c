@@ -98,6 +98,11 @@ char *os_find_datadir(void)
         return g_steal_pointer(&dir);
     }
 
+    dir = g_build_filename(exec_dir, "..", "share", "qemu", NULL);
+    if (g_file_test(dir, G_FILE_TEST_IS_DIR)) {
+        return g_steal_pointer(&dir);
+    }
+
     return g_strdup(CONFIG_QEMU_DATADIR);
 }
 
