@@ -248,6 +248,10 @@ endif
 install: all
 ifneq ($(PROGS),)
 	$(call install-prog,$(PROGS),$(DESTDIR)$(bindir))
+	for p in $(PROGS); do \
+		pname=$$(basename $${p}); \
+		mv $(DESTDIR)$(bindir)/$$pname $(DESTDIR)$(bindir)/zephyr-$$pname; \
+	done
 endif
 ifdef CONFIG_TRACE_SYSTEMTAP
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_datadir)/../systemtap/tapset"
