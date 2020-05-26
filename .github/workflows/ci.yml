@@ -5,6 +5,8 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+  release:
+    types: [ published ]
 
 jobs:
   build:
@@ -160,6 +162,12 @@ jobs:
         export OUTPUT_BASE="${WORKSPACE}"
         export OUTPUT_DIR="output"
 
+        # Rename output directory to tag name if release build
+        if [ "${{ github.event_name }}" == "release" ]; then
+          mv ${OUTPUT_BASE}/${OUTPUT_DIR} ${OUTPUT_BASE}/${{ github.event.release.tag_name }}
+          export OUTPUT_DIR="${{ github.event.release.tag_name }}"
+        fi
+
         # Create archive
         if [ "${{ matrix.host.archive }}" == "tar.gz" ]; then
           ${TAR} -zcvf qemu_${{ matrix.host.name }}.tar.gz --owner=0 --group=0 \
@@ -172,7 +180,20 @@ jobs:
 
     # Upload build artifact
     - name: Upload build artifact
+      if: github.event_name != 'release'
       uses: actions/upload-artifact@v2
       with:
         name: qemu_${{ matrix.host.name }}
         path: qemu_${{ matrix.host.name }}.${{ matrix.host.archive }}
+
+    # Upload release asset
+    - name: Upload release asset
+      if: github.event_name == 'release'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: qemu_${{ matrix.host.name }}.${{ matrix.host.archive }}
+        asset_name: ${{ github.event.release.tag_name }}_${{ matrix.host.name }}.${{ matrix.host.archive }}
+        asset_content_type: application/octet-stream
