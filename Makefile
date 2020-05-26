@@ -934,6 +934,10 @@ install: all $(if $(BUILD_DOCS),install-doc) \
 	recurse-install
 ifneq ($(TOOLS),)
 	$(call install-prog,$(TOOLS),$(DESTDIR)$(bindir))
+	for t in $(TOOLS); do \
+		tname=$$(basename $${t}); \
+		mv $(DESTDIR)$(bindir)/$$tname $(DESTDIR)$(bindir)/zephyr-$$tname; \
+	done
 endif
 ifneq ($(CONFIG_MODULES),)
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_moddir)"
@@ -954,6 +958,7 @@ ifneq ($(vhost-user-json-y),)
 endif
 ifdef CONFIG_TRACE_SYSTEMTAP
 	$(INSTALL_PROG) "scripts/qemu-trace-stap" $(DESTDIR)$(bindir)
+	mv $(DESTDIR)$(bindir)/qemu-trace-stap $(DESTDIR)$(bindir)/zephyr-qemu-trace-stap
 endif
 ifneq ($(BLOBS),)
 	set -e; for x in $(BLOBS); do \
