@@ -180,4 +180,7 @@ gdb-%: %
 .PHONY: run
 run: $(RUN_TESTS)
 
+test-arc:
+	$(MAKE) -C arc check
+
 # There is no clean target, the calling make just rm's the tests build dir
