@@ -119,7 +119,7 @@ jobs:
 
         if [ "${{ matrix.host.name }}" == "windows-x86_64" ]; then
           QEMU_FLAGS="${QEMU_FLAGS} \
-            --cross-prefix="x86_64-w64-mingw32-"
+            --cross-prefix=x86_64-w64-mingw32-
           "
         fi
 
