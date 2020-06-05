@@ -96,6 +96,7 @@ jobs:
         # Configure QEMU
         QEMU_TARGETS=" \
           aarch64-softmmu \
+          arc-softmmu \
           arm-softmmu \
           i386-softmmu \
           nios2-softmmu \
