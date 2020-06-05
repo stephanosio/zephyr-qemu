@@ -96,9 +96,7 @@ QEMU_PKGVERSION := $(if $(PKGVERSION),$(PKGVERSION),$(shell \
   cd $(SRC_PATH); \
   if test -e .git; then \
     git describe --match 'zephyr-qemu-v*' 2>/dev/null | tr -d '\n'; \
-    if ! git diff-index --quiet HEAD &>/dev/null; then \
-      echo "-dirty"; \
-    fi; \
+    git diff --quiet 2>/dev/null || echo '-dirty'; \
   fi))
 
 # Either "version (pkgversion)", or just "version" if pkgversion not set
