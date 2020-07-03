@@ -4069,6 +4069,7 @@ arc2_gen_AEX (DisasCtxt *ctx, TCGv src2, TCGv b)
 
 
 
+#include "exec/gen-icount.h"
 
 
 /* LR
@@ -4084,6 +4085,10 @@ int
 arc2_gen_LR (DisasCtxt *ctx, TCGv dest, TCGv src)
 {
   int ret = DISAS_NEXT;
+
+  if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT)
+    gen_io_start();
+
   TCGv temp_1 = tcg_temp_local_new_i32();
   readAuxReg(temp_1, src);
   tcg_gen_mov_i32(dest, temp_1);
@@ -4109,6 +4114,9 @@ int
 arc2_gen_SR (DisasCtxt *ctx, TCGv src2, TCGv src1)
 {
   int ret = DISAS_NEXT;
+
+  if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT)
+    gen_io_start();
 
   writeAuxReg(src2, src1);
   return ret;
